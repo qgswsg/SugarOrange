@@ -14,6 +14,7 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.TypeElement;
+import javax.tools.Diagnostic;
 
 
 @AutoService(Processor.class)
@@ -37,23 +38,43 @@ public class SugarOrangeProcessor extends AbstractProcessor {
     @Override
     public synchronized void init(ProcessingEnvironment processingEnvironment) {
         super.init(processingEnvironment);
-        merge = new Merge(processingEnvironment);
     }
 
     @Override
     public boolean process(Set<? extends TypeElement> set, RoundEnvironment roundEnvironment) {
-        Set<? extends Element> mergeNameElements = roundEnvironment.getElementsAnnotatedWith(MergeName.class);
-        String mergeName = "ApiService";
-        if (mergeNameElements.size() > 1) {
-            return false;
-        } else if (mergeNameElements.size() == 1) {
-            String value = mergeNameElements.iterator().next().getAnnotation(MergeName.class).value();
-            if (!value.isEmpty()) {
-                mergeName = value;
+        if (merge == null) {
+            merge = new Merge(processingEnv);
+            Set<? extends Element> mergeNameElements = roundEnvironment.getElementsAnnotatedWith(MergeName.class);
+            if (mergeNameElements.size() > 1) {
+                Element next = mergeNameElements.iterator().next();
+                error(next, "Cannot have multiple @MergeName annotations at the same time");
+            } else {
+                if (mergeNameElements.size() == 1) {
+                    String value = mergeNameElements.iterator().next().getAnnotation(MergeName.class).value();
+                    if (!value.isEmpty()) {
+                        merge.start(value, roundEnvironment);
+                    }
+                } else {
+                    merge.start("SugarOrangeApiService", roundEnvironment);
+                }
             }
-            merge.start(mergeName,roundEnvironment);
-            return true;
         }
-        return true;
+        return false;
     }
+
+    private void error(Element element, String message, Object... args) {
+        printMessage(Diagnostic.Kind.ERROR, element, message, args);
+    }
+
+    private void note(Element element, String message, Object... args) {
+        printMessage(Diagnostic.Kind.NOTE, element, message, args);
+    }
+
+    private void printMessage(Diagnostic.Kind kind, Element element, String message, Object... args) {
+        if (args.length > 0) {
+            message = String.format(message, args);
+        }
+        processingEnv.getMessager().printMessage(kind, message, element);
+    }
+
 }
