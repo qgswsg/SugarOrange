@@ -4,6 +4,7 @@ import com.google.auto.common.SuperficialValidation;
 import com.qgswsg.sugarorangeannotation.Api;
 import com.squareup.javapoet.AnnotationSpec;
 import com.squareup.javapoet.ClassName;
+import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterSpec;
@@ -47,6 +48,7 @@ class Merge {
         for (Element element : elements) {
             if (!SuperficialValidation.validateElement(element)) continue;
             PackageElement packageElement = env.getElementUtils().getPackageOf(element);
+            String baseUrl = element.getAnnotation(Api.class).baseUrl();
             pkName = packageElement.getQualifiedName().toString();
             for (Element membersElement : env.getElementUtils().getAllMembers((TypeElement) element)) {
                 if (membersElement.getKind().equals(ElementKind.METHOD)) {
@@ -57,7 +59,7 @@ class Merge {
                             .addModifiers(executableElement.getModifiers())
                             .returns(ClassName.get(executableElement.getReturnType()))
                             .addParameters(getParameter(executableElement))
-                            .addAnnotations(getElementAnnotationMirrors(membersElement))
+                            .addAnnotations(getElementAnnotationMirrors(membersElement, baseUrl))
                             .addJavadoc(env.getElementUtils().getDocComment(executableElement)).build();
                     methodSpecs.add(methodSpec);
                 }
@@ -80,16 +82,30 @@ class Merge {
             for (Modifier modifier : variableElement.getModifiers()) {
                 builder.addModifiers(modifier);
             }
-            builder.addAnnotations(getElementAnnotationMirrors(variableElement));
+            builder.addAnnotations(getParameterAnnotationMirrors(variableElement));
             parameterSpecs.add(builder.build());
         }
         return parameterSpecs;
     }
 
-    private List<AnnotationSpec> getElementAnnotationMirrors(Element element) {
+    private List<AnnotationSpec> getParameterAnnotationMirrors(Element element) {
         List<AnnotationSpec> annotationSpecList = new ArrayList<>();
         for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
             annotationSpecList.add(AnnotationSpec.get(annotationMirror));
+        }
+        return annotationSpecList;
+    }
+
+    private List<AnnotationSpec> getElementAnnotationMirrors(Element element, String baseUrl) {
+        List<AnnotationSpec> annotationSpecList = new ArrayList<>();
+        for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
+            AnnotationSpec annotationSpec = AnnotationSpec.get(annotationMirror);
+            if (annotationSpec.members.size() == 1 && annotationSpec.members.containsKey("value")) {
+                // @Named("foo")
+                List<CodeBlock> value = annotationSpec.members.get("value");
+                annotationSpec = AnnotationSpec.builder(ClassName.get("retrofit2.http", "GET")).addMember("value", CodeBlock.builder().add("\"$L\" + $L", baseUrl, value.get(0).toString()).build()).build();
+            }
+            annotationSpecList.add(annotationSpec);
         }
         return annotationSpecList;
     }
