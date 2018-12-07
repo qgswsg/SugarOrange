@@ -7,7 +7,7 @@
 
 这个库的使用非常简单，只需要用到两个注解：@Api和@MergeName
 
-@Api用来注解Retrofit的接口文件：
+在接口上使用@Api：
 
 <pre>
 @Api("http://www.github.com/")
