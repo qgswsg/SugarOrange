@@ -25,3 +25,4 @@ public interface GitHubService {
 </pre>
 而@MergeName可以在任意地方使用，目的只为指定被@Api注解的所有接口文件合并后的class文件名：
 <pre>@MergeName("MyApiService")</pre>
+!(效果图)[https://github.com/qgswsg/SugarOrange/blob/master/%E6%95%88%E6%9E%9C%E5%9B%BE.jpg]
