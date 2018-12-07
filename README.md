@@ -23,7 +23,7 @@ public interface GitHubService {
     Call<User> getUser(@Path("username") String username);
 }
 </pre>
-而@MergeName可以在任意地方使用，目的是指定那些使用@Api的接口文件合并后生成的新class文件的文件名：
+而@MergeName可以在任意地方使用，目的是指定那些使用@Api的接口在合并后生成新class文件的文件名：
 <pre>@MergeName("MyApiService")</pre>
 ![效果图](https://github.com/qgswsg/SugarOrange/blob/master/%E6%95%88%E6%9E%9C%E5%9B%BE.jpg)
 如上图所示，多个接口文件被注解上@Api后，在执行完Rebuild Project后就自动合并成了@MergeName注解所指定的新文件。并且将对应的baseUrl添加到了对应的API接口上。
