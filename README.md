@@ -26,3 +26,16 @@ public interface GitHubService {
 而@MergeName可以在任意地方使用，目的只为指定被@Api注解的所有接口文件合并后的class文件名：
 <pre>@MergeName("MyApiService")</pre>
 ![效果图](https://github.com/qgswsg/SugarOrange/blob/master/%E6%95%88%E6%9E%9C%E5%9B%BE.jpg)
+如上图所示，多个接口文件被注解上@Api后，在执行完Rebuild Project后就自动合并成了@MergeName注解所指定的新文件。并且将对应的baseUrl添加到了对应的API接口上。
+
+这是利用了Retrofit在写请求接口时，如果给定的是完整的URL路径，将忽略构建实例时所指定的baseUrl。
+
+就这样简单轻松的解决了多个baseUrl带来的不便。
+
+当然，如果项目中没有使用到多个baseUrl也可以使用本开源库对上百个API接口进行分类管理，使项目结构更加清晰。
+
+依赖：
+<pre>
+    implementation 'com.qgswsg:SugarOrange-annotation:v1.0'
+    annotationProcessor  'com.qgswsg:SugarOrange-compiler:v1.0'
+</pre>
