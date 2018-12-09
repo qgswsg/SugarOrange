@@ -13,6 +13,7 @@ import com.squareup.javapoet.TypeSpec;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -34,6 +35,7 @@ import javax.tools.Diagnostic;
 class Merge {
 
     private static final String VALUE = "value";
+    private static final String PATH = "path";
     private static final String STRING = "java.lang.String";
     private static final String HTTP = "http";
     private static final String[] objMethod = new String[]{"getClass", "hashCode", "equals", "toString", "notify", "notifyAll", "wait"};
@@ -45,27 +47,49 @@ class Merge {
         this.env = env;
     }
 
-    public void start(String name, RoundEnvironment roundEnvironment) {
+    void start(String name, RoundEnvironment roundEnvironment) {
         Set<? extends Element> elements = roundEnvironment.getElementsAnnotatedWith(Api.class);
         if (elements == null) return;
         String pkName = "com.qgswsg.sugarorange";
         TypeSpec.Builder mergeApiInterfaceBuilder = TypeSpec.interfaceBuilder(name).addModifiers(Modifier.PUBLIC);
+        Map<Integer, Void> methodMap = new HashMap<>();
         List<MethodSpec> methodSpecs = new ArrayList<>();
         for (Element element : elements) {
             if (!SuperficialValidation.validateElement(element)) continue;
             PackageElement packageElement = env.getElementUtils().getPackageOf(element);
             String baseUrl = element.getAnnotation(Api.class).value();
+            if (!element.getKind().isInterface()) {
+                error(element, "API declarations must be interfaces.");
+                return;
+            }
+            if (!baseUrl.isEmpty()) {
+                if (!baseUrl.toLowerCase().startsWith(HTTP)) {
+                    error(element, "baseUrl must start in http or https:%s", baseUrl);
+                    return;
+                }
+                if (!baseUrl.endsWith("/")) {
+                    error(element, "baseUrl must end in /:%s", baseUrl);
+                    return;
+                }
+            }
             pkName = packageElement.getQualifiedName().toString();
             for (Element membersElement : env.getElementUtils().getAllMembers((TypeElement) element)) {
                 if (membersElement.getKind().equals(ElementKind.METHOD)) {
                     ExecutableElement executableElement = (ExecutableElement) membersElement;
-                    if (Arrays.asList(objMethod).contains(executableElement.getSimpleName().toString()))
+                    String methodName = executableElement.getSimpleName().toString();
+                    if (Arrays.asList(objMethod).contains(methodName))
                         continue;
                     String docComment = env.getElementUtils().getDocComment(executableElement);
-                    MethodSpec methodSpec = MethodSpec.methodBuilder(executableElement.getSimpleName().toString())
+                    List<ParameterSpec> parameterSpecList = getParameter(executableElement);
+                    int methodHashCode = getMethodHashCode(methodName, parameterSpecList);
+                    if (methodMap.containsKey(methodHashCode)) {
+                        methodName = methodName + membersElement.getEnclosingElement().getSimpleName();
+                    }
+                    methodMap.put(methodHashCode, null);
+                    MethodSpec methodSpec = MethodSpec.methodBuilder(methodName)
                             .addModifiers(executableElement.getModifiers())
                             .returns(ClassName.get(executableElement.getReturnType()))
-                            .addParameters(getParameter(executableElement))
+                            .addParameters(parameterSpecList)
                             .addAnnotations(getElementAnnotationMirrors(membersElement, baseUrl))
                             .addJavadoc(docComment == null ? "" : docComment).build();
                     methodSpecs.add(methodSpec);
@@ -79,6 +103,15 @@ class Merge {
         } catch (IOException e) {
             e.printStackTrace();
         }
+    }
+
+    private int getMethodHashCode(String name, List<ParameterSpec> parameters) {
+        StringBuilder builder = new StringBuilder(name);
+        for (ParameterSpec p : parameters) {
+            builder.append(p.type);
+            builder.append(p.name);
+        }
+        return builder.toString().hashCode();
     }
 
     private List<ParameterSpec> getParameter(ExecutableElement executableElement) {
@@ -107,25 +140,42 @@ class Merge {
         for (AnnotationMirror annotationMirror : element.getAnnotationMirrors()) {
             AnnotationSpec annotationSpec = AnnotationSpec.get(annotationMirror);
             if (Arrays.asList(httpMethod).contains(annotationMirror.getAnnotationType().asElement().getSimpleName().toString())) {
-                AnnotationSpec.Builder builder = AnnotationSpec.builder(ClassName.bestGuess(annotationMirror.getAnnotationType().toString()));
-                if (!annotationMirror.getElementValues().isEmpty()) {
-                    for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> next : annotationMirror.getElementValues().entrySet()) {
-                        String url = null;
-                        if (next.getKey().getSimpleName().toString().equals(VALUE) && next.getKey().getReturnType().toString().equals(STRING)) {
-                            if (!next.getValue().getValue().toString().toLowerCase().startsWith(HTTP)) {
-                                url = baseUrl + next.getValue().getValue().toString();
-                            }
-                        }
-                        builder.addMember(VALUE, url == null ? "$L" : "$S", url == null ? next.getValue() : url);
-                    }
-                } else {
-                    builder.addMember(VALUE, "$S", baseUrl);
-                }
-                annotationSpec = builder.build();
+                annotationSpec = annotationAddBaseUrl(baseUrl, VALUE, annotationMirror);
+            } else if (annotationMirror.getAnnotationType().asElement().getSimpleName().toString().equals("HTTP")) {
+                annotationSpec = annotationAddBaseUrl(baseUrl, PATH, annotationMirror);
             }
             annotationSpecList.add(annotationSpec);
         }
         return annotationSpecList;
+    }
+
+    private AnnotationSpec annotationAddBaseUrl(String baseUrl, String annotationMethodName, AnnotationMirror annotationMirror) {
+        AnnotationSpec annotationSpec;
+        AnnotationSpec.Builder builder = AnnotationSpec.builder(ClassName.bestGuess(annotationMirror.getAnnotationType().toString()));
+        if (!annotationMirror.getElementValues().isEmpty()) {
+            boolean hasPath = false;
+            for (Map.Entry<? extends ExecutableElement, ? extends AnnotationValue> next : annotationMirror.getElementValues().entrySet()) {
+                String url = null;
+                if (next.getKey().getSimpleName().toString().equals(annotationMethodName) && next.getKey().getReturnType().toString().equals(STRING)) {
+                    if (annotationMethodName.equals(PATH)) {
+                        hasPath = true;
+                    }
+                    if (!next.getValue().getValue().toString().toLowerCase().startsWith(HTTP)) {
+                        url = baseUrl + next.getValue().getValue().toString();
+                    }
+                    builder.addMember(annotationMethodName, url == null ? "$L" : "$S", url == null ? next.getValue() : url);
+                } else {
+                    builder.addMember(next.getKey().getSimpleName().toString(), next.getValue().toString());
+                }
+            }
+            if (annotationMethodName.equals(PATH) && !hasPath) {
+                builder.addMember(annotationMethodName, "$S", baseUrl);
+            }
+        } else {
+            builder.addMember(annotationMethodName, "$S", baseUrl);
+        }
+        annotationSpec = builder.build();
+        return annotationSpec;
     }
 
     private void error(Element element, String message, Object... args) {
