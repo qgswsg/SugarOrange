@@ -37,5 +37,5 @@ public interface GitHubService {
 依赖：
 <pre>
     implementation 'com.qgswsg:SugarOrange-annotation:v1.0'
-    annotationProcessor  'com.qgswsg:SugarOrange-compiler:v1.0'
+    annotationProcessor  'com.qgswsg:SugarOrange-compiler:v1.5'
 </pre>
