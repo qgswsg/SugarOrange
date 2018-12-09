@@ -9,7 +9,6 @@ android {
         versionCode 1
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
-        javaCompileOptions { annotationProcessorOptions { includeCompileClasspath = true } }
     }
     buildTypes {
         release {
@@ -41,6 +40,5 @@ dependencies {
     implementation 'com.squareup.retrofit2:converter-gson:2.5.0'
     implementation 'io.reactivex.rxjava2:rxandroid:2.1.0'
     implementation 'com.qgswsg:SugarOrange-annotation:v1.0'
-//    implementation project(':SugarOrangeAnnotation')
-    implementation project(':SugarOrangeCompiler')
+    annotationProcessor  'com.qgswsg:SugarOrange-compiler:v1.5'
 }

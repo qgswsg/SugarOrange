@@ -15,4 +15,7 @@ public interface GoogleService {
 
     @GET("group/{id}/users")
     Call<List<User>> groupList(@Path("id") int groupId, @QueryMap Map<String, String> options);
+
+    @GET("users/{username}")
+    Call<User> getUser(@Path("username") String username);
 }
