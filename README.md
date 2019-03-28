@@ -9,7 +9,7 @@
 
 在接口上使用@Api：
 
-<pre>
+```java
 @Api("http://www.github.com/")
 public interface GitHubService {
     @GET("users/{user}/repos")
@@ -22,7 +22,7 @@ public interface GitHubService {
     @GET("users/{username}")
     Call<User> getUser(@Path("username") String username);
 }
-</pre>
+```
 而@MergeName可以在任意地方使用，目的是指定那些使用@Api的接口在合并后生成新class文件的文件名：
 <pre>@MergeName("MyApiService")</pre>
 ![效果图](https://github.com/qgswsg/SugarOrange/blob/master/%E6%95%88%E6%9E%9C%E5%9B%BE.jpg)
@@ -35,7 +35,7 @@ public interface GitHubService {
 当然，如果项目中没有使用到多个baseUrl也可以使用本开源库对上百个API接口进行分类管理，使项目结构更加清晰。
 
 依赖：
-<pre>
+```
     implementation 'com.qgswsg:SugarOrange-annotation:v1.0'
     annotationProcessor  'com.qgswsg:SugarOrange-compiler:v1.5'
-</pre>
+```
